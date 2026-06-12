@@ -1,0 +1,22 @@
+<?php
+return [
+    'accueil_titre'      => 'مرحباً بكم في ميدي أردي في',
+    'accueil_slogan'     => 'صحتك، موعدك، في كل مكان وزمان.',
+    'prendre_rdv'        => 'حجز موعد',
+    'medecins'           => 'الأطباء',
+    'etablissements'     => 'المؤسسات',
+    'contact'            => 'اتصل بنا',
+    'connexion'          => 'تسجيل الدخول',
+    'deconnexion'        => 'تسجيل الخروج',
+    'tableau_bord'       => 'لوحة التحكم',
+    'erreur_404'         => 'الصفحة غير موجودة',
+    'pourquoi_titre'     => 'لماذا تختار ميدي أردي في؟',
+    'reservation_rapide' => 'حجز سريع',
+    'teleconsultation'   => 'استشارة عن بعد',
+    'paiement_securise'  => 'دفع آمن',
+    'notifications'      => 'إشعارات',
+    'statistiques'       => 'إحصائيات',
+    'temoignages'        => 'آراء المرضى',
+    'inscription'        => 'إنشاء حساب',
+    'rejoindre'          => 'انضم إلينا',
+];

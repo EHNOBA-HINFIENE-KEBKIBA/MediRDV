@@ -1,0 +1,22 @@
+<?php
+return [
+    'accueil_titre'      => 'Welcome to MediRDV',
+    'accueil_slogan'     => 'Your health, your appointment, anytime, anywhere.',
+    'prendre_rdv'        => 'Book an appointment',
+    'medecins'           => 'Doctors',
+    'etablissements'     => 'Facilities',
+    'contact'            => 'Contact',
+    'connexion'          => 'Login',
+    'deconnexion'        => 'Logout',
+    'tableau_bord'       => 'Dashboard',
+    'erreur_404'         => 'Page not found',
+    'pourquoi_titre'     => 'Why choose MediRDV?',
+    'reservation_rapide' => 'Quick booking',
+    'teleconsultation'   => 'Teleconsultation',
+    'paiement_securise'  => 'Secure payment',
+    'notifications'      => 'Notifications',
+    'statistiques'       => 'Statistics',
+    'temoignages'        => 'Testimonials',
+    'inscription'        => 'Sign up',
+    'rejoindre'          => 'Join us',
+];
