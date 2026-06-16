@@ -25,26 +25,64 @@ class Etablissement extends Modele {
     /**
      * Ajoute un nouvel établissement
      */
-    public function ajouter($donnees) {
-        $sql = "INSERT INTO {$this->table} (nom, type, description, adresse, telephone, email, coord_gps, horaires, id_ville) 
-                VALUES (:nom, :type, :description, :adresse, :telephone, :email, :coord_gps, :horaires, :id_ville)";
-        $stmt = $this->pdo->prepare($sql);
-        return $stmt->execute($donnees);
+/**
+ * Ajoute un nouvel établissement.
+ * Accepte un tableau associatif des colonnes à insérer.
+ * Les clés doivent correspondre aux colonnes de la table 'etablissements'.
+ */
+public function ajouter($donnees) {
+    // Filtrer les champs autorisés (colonnes réelles de la table)
+    $colonnesAutorisees = [
+        'nom', 'type', 'description', 'adresse', 'telephone',
+        'email', 'coord_gps', 'horaires', 'logo', 'id_ville'
+    ];
+
+    $champs = [];
+    $params = [];
+    foreach ($donnees as $colonne => $valeur) {
+        if (in_array($colonne, $colonnesAutorisees)) {
+            $champs[] = $colonne;
+            $params[":$colonne"] = $valeur;
+        }
     }
 
-    /**
-     * Modifie un établissement existant
-     */
-    public function modifier($id, $donnees) {
-        $sql = "UPDATE {$this->table} SET 
-                nom = :nom, type = :type, description = :description, 
-                adresse = :adresse, telephone = :telephone, email = :email, 
-                coord_gps = :coord_gps, horaires = :horaires, id_ville = :id_ville 
-                WHERE id_etablissement = :id";
-        $donnees['id'] = $id;
-        $stmt = $this->pdo->prepare($sql);
-        return $stmt->execute($donnees);
+    if (empty($champs)) return false;
+
+    $sql = "INSERT INTO {$this->table} (" . implode(', ', $champs) . ") VALUES (" . implode(', ', array_keys($params)) . ")";
+    $stmt = $this->pdo->prepare($sql);
+    return $stmt->execute($params);
+}
+
+/**
+ * Modifie un établissement existant.
+ * Accepte un tableau associatif des colonnes à modifier.
+ */
+public function modifier($id, $donnees) {
+    $colonnesAutorisees = [
+        'nom', 'type', 'description', 'adresse', 'telephone',
+        'email', 'coord_gps', 'horaires', 'logo', 'id_ville'
+    ];
+
+    $sets = [];
+    $params = [];
+
+    foreach ($donnees as $colonne => $valeur) {
+        if (in_array($colonne, $colonnesAutorisees)) {
+            $sets[] = "$colonne = :$colonne";
+            $params[":$colonne"] = $valeur;
+        }
     }
+
+    if (empty($sets)) {
+        return false;
+    }
+
+    $sql = "UPDATE {$this->table} SET " . implode(', ', $sets) . " WHERE id_etablissement = :id";
+    $params[':id'] = $id;
+
+    $stmt = $this->pdo->prepare($sql);
+    return $stmt->execute($params);
+}
 
     /**
      * Supprime un établissement

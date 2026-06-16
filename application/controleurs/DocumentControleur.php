@@ -113,4 +113,29 @@ class DocumentControleur extends Controleur {
         }
         $this->rediriger('/mes-documents');
     }
+
+    /**
+ * Retourne les documents du patient connecté au format JSON
+ */
+public function listeJson() {
+    if (!isset($_SESSION['utilisateur_id'])) {
+        echo json_encode([]);
+        exit;
+    }
+    $id_patient = $_SESSION['utilisateur_id'];
+    $documentModel = new Document();
+    $documents = $documentModel->pourPatient($id_patient);
+    header('Content-Type: application/json');
+    echo json_encode($documents);
+    exit;
+}
+
+/**
+ * Récupère les documents liés à un rendez-vous
+ */
+public function pourRdv($id_rdv) {
+    $stmt = $this->pdo->prepare("SELECT * FROM {$this->table} WHERE id_rdv = :id_rdv ORDER BY date_upload DESC");
+    $stmt->execute(['id_rdv' => $id_rdv]);
+    return $stmt->fetchAll();
+}
 }

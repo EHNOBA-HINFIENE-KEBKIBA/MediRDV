@@ -1,9 +1,6 @@
 <?php
 class AdminControleur extends Controleur {
 
-    /**
-     * Vérifie que l'utilisateur est Super Admin (role_id = 1)
-     */
     private function verifierSuperAdmin() {
         if (!isset($_SESSION['utilisateur_id']) || $_SESSION['role_id'] != 1) {
             $this->rediriger('/connexion');
@@ -39,61 +36,92 @@ class AdminControleur extends Controleur {
         ]);
     }
 
-public function enregistrerAjoutEtablissement() {
-    $this->verifierSuperAdmin();
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $donnees = [
-            'nom' => $_POST['nom'] ?? '',
-            'type' => $_POST['type'] ?? '',
-            'description' => $_POST['description'] ?? '',
-            'adresse' => $_POST['adresse'] ?? '',
-            'telephone' => $_POST['telephone'] ?? '',
-            'email' => $_POST['email'] ?? '',
-            'coord_gps' => $_POST['coord_gps'] ?? '',
-            'horaires' => $_POST['horaires'] ?? '',
-            'id_ville' => $_POST['id_ville'] ?? 0
-        ];
-
-        // Récupération des infos pour le compte admin
-        $adminNom = $_POST['admin_nom'] ?? '';
-        $adminPrenom = $_POST['admin_prenom'] ?? '';
-        $adminEmail = $_POST['admin_email'] ?? '';
-        $adminMotDePasse = $_POST['admin_mot_de_passe'] ?? '';
-
-        $etablissementModel = new Etablissement();
-        $pdo = BaseDeDonnees::getInstance()->getPdo();
-
-        try {
-            $pdo->beginTransaction();
-
-            // Créer l'établissement
-            $ok = $etablissementModel->ajouter($donnees);
-            if (!$ok) throw new Exception("Erreur ajout établissement");
-
-            $id_etablissement = $pdo->lastInsertId();
-
-            // Créer le compte administrateur d'établissement
-            $utilisateurModel = new Utilisateur();
-            $adminData = [
-                'nom' => $adminNom,
-                'prenom' => $adminPrenom,
-                'email' => $adminEmail,
-                'mot_de_passe' => $adminMotDePasse,
-                'telephone' => $_POST['admin_telephone'] ?? '',
-                'id_role' => 2, // Admin établissement
-                'id_etablissement' => $id_etablissement
+    public function enregistrerAjoutEtablissement() {
+        $this->verifierSuperAdmin();
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $donneesEtab = [
+                'nom' => $_POST['nom'] ?? '',
+                'type' => $_POST['type'] ?? '',
+                'description' => $_POST['description'] ?? '',
+                'adresse' => $_POST['adresse'] ?? '',
+                'telephone' => $_POST['telephone'] ?? '',
+                'email' => $_POST['email'] ?? '',
+                'coord_gps' => $_POST['coord_gps'] ?? '',
+                'horaires' => $_POST['horaires'] ?? '',
+                'id_ville' => $_POST['id_ville'] ?? 0
             ];
-            $utilisateurModel->creerAvecRole($adminData, 'autre'); // 'autre' car pas médecin
 
-            $pdo->commit();
-            $_SESSION['message_admin'] = 'Établissement et compte administrateur créés avec succès.';
-        } catch (Exception $e) {
-            $pdo->rollBack();
-            $_SESSION['message_admin'] = 'Erreur lors de la création : ' . $e->getMessage();
+            // Gestion du logo
+            if (isset($_FILES['logo']) && $_FILES['logo']['error'] === UPLOAD_ERR_OK) {
+                $dossierLogo = 'public/assets/images/logos/';
+                if (!is_dir($dossierLogo)) mkdir($dossierLogo, 0755, true);
+                $extensionLogo = pathinfo($_FILES['logo']['name'], PATHINFO_EXTENSION);
+                $nomFichierLogo = 'etab_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $extensionLogo;
+                $cheminLogo = $dossierLogo . $nomFichierLogo;
+                if (move_uploaded_file($_FILES['logo']['tmp_name'], $cheminLogo)) {
+                    $donneesEtab['logo'] = $cheminLogo;
+                }
+            }
+
+            // Gestion de la photo admin
+            $adminPhoto = null;
+            if (isset($_FILES['admin_photo']) && $_FILES['admin_photo']['error'] === UPLOAD_ERR_OK) {
+                $dossierPhoto = 'public/assets/images/photos/';
+                if (!is_dir($dossierPhoto)) mkdir($dossierPhoto, 0755, true);
+                $extensionPhoto = pathinfo($_FILES['admin_photo']['name'], PATHINFO_EXTENSION);
+                $nomFichierPhoto = 'admin_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $extensionPhoto;
+                $cheminPhoto = $dossierPhoto . $nomFichierPhoto;
+                if (move_uploaded_file($_FILES['admin_photo']['tmp_name'], $cheminPhoto)) {
+                    $adminPhoto = $cheminPhoto;
+                }
+            }
+
+            $adminNom = $_POST['admin_nom'] ?? '';
+            $adminPrenom = $_POST['admin_prenom'] ?? '';
+            $adminEmail = $_POST['admin_email'] ?? '';
+            $adminMotDePasse = $_POST['admin_mot_de_passe'] ?? '';
+            $adminTelephone = $_POST['admin_telephone'] ?? '';
+
+            // Vérifier que l'email admin n'est pas déjà utilisé
+            $utilisateurModel = new Utilisateur();
+            if ($utilisateurModel->trouverParEmail($adminEmail)) {
+                $_SESSION['message_admin'] = 'Cet email administrateur est déjà utilisé.';
+                $this->rediriger('/admin/ajouter-etablissement');
+                return;
+            }
+
+            $etablissementModel = new Etablissement();
+            $pdo = BaseDeDonnees::getInstance()->getPdo();
+
+            try {
+                $pdo->beginTransaction();
+
+                $ok = $etablissementModel->ajouter($donneesEtab);
+                if (!$ok) throw new Exception("Erreur ajout établissement");
+
+                $id_etablissement = $pdo->lastInsertId();
+
+                $adminData = [
+                    'nom' => $adminNom,
+                    'prenom' => $adminPrenom,
+                    'email' => $adminEmail,
+                    'mot_de_passe' => $adminMotDePasse,
+                    'telephone' => $adminTelephone,
+                    'photo' => $adminPhoto,
+                    'id_role' => 2,
+                    'id_etablissement' => $id_etablissement
+                ];
+                $utilisateurModel->creerAvecRole($adminData, 'autre');
+
+                $pdo->commit();
+                $_SESSION['message_admin'] = 'Établissement et compte administrateur créés avec succès.';
+            } catch (Exception $e) {
+                $pdo->rollBack();
+                $_SESSION['message_admin'] = 'Erreur lors de la création : ' . $e->getMessage();
+            }
         }
+        $this->rediriger('/admin/etablissements');
     }
-    $this->rediriger('/admin/etablissements');
-}
 
     public function modifierEtablissement($id) {
         $this->verifierSuperAdmin();
@@ -115,38 +143,49 @@ public function enregistrerAjoutEtablissement() {
         ]);
     }
 
-    public function enregistrerModificationEtablissement() {
-        $this->verifierSuperAdmin();
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $id = $_POST['id_etablissement'] ?? 0;
-            $donnees = [
-                'nom' => $_POST['nom'] ?? '',
-                'type' => $_POST['type'] ?? '',
-                'description' => $_POST['description'] ?? '',
-                'adresse' => $_POST['adresse'] ?? '',
-                'telephone' => $_POST['telephone'] ?? '',
-                'email' => $_POST['email'] ?? '',
-                'coord_gps' => $_POST['coord_gps'] ?? '',
-                'horaires' => $_POST['horaires'] ?? '',
-                'id_ville' => $_POST['id_ville'] ?? 0
-            ];
-            $etablissementModel = new Etablissement();
-            if ($etablissementModel->modifier($id, $donnees)) {
-                $_SESSION['message_admin'] = 'Établissement modifié avec succès.';
-            } else {
-                $_SESSION['message_admin'] = 'Erreur lors de la modification.';
+public function enregistrerModificationEtablissement() {
+    $this->verifierSuperAdmin();
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $id = $_POST['id_etablissement'] ?? 0;
+        $donnees = [
+            'nom'         => $_POST['nom'] ?? '',
+            'type'        => $_POST['type'] ?? '',
+            'description' => $_POST['description'] ?? '',
+            'adresse'     => $_POST['adresse'] ?? '',
+            'telephone'   => $_POST['telephone'] ?? '',
+            'email'       => $_POST['email'] ?? '',
+            'coord_gps'   => $_POST['coord_gps'] ?? '',
+            'horaires'    => $_POST['horaires'] ?? '',
+            'id_ville'    => $_POST['id_ville'] ?? 0
+        ];
+
+        // Gestion du logo (upload si un fichier est fourni)
+        if (isset($_FILES['logo']) && $_FILES['logo']['error'] === UPLOAD_ERR_OK) {
+            $dossier = 'public/assets/images/logos/';
+            if (!is_dir($dossier)) mkdir($dossier, 0755, true);
+            $extension = pathinfo($_FILES['logo']['name'], PATHINFO_EXTENSION);
+            $nomFichier = 'etab_' . $id . '_' . time() . '.' . $extension;
+            $chemin = $dossier . $nomFichier;
+            if (move_uploaded_file($_FILES['logo']['tmp_name'], $chemin)) {
+                $donnees['logo'] = $chemin;
             }
         }
-        $this->rediriger('/admin/etablissements');
+
+        $etablissementModel = new Etablissement();
+        if ($etablissementModel->modifier($id, $donnees)) {
+            $_SESSION['message_admin'] = 'Établissement modifié avec succès.';
+        } else {
+            $_SESSION['message_admin'] = 'Erreur lors de la modification.';
+        }
     }
+    $this->rediriger('/admin/etablissements');
+}
 
     public function supprimerEtablissement($id) {
         $this->verifierSuperAdmin();
         $etablissementModel = new Etablissement();
         $success = false;
         $message = '';
-
-        // Vérifier si l'établissement a des dépendances (médecins, rendez-vous...)
         $pdo = BaseDeDonnees::getInstance()->getPdo();
         $stmt = $pdo->prepare("SELECT COUNT(*) FROM medecins WHERE id_etablissement = :id");
         $stmt->execute(['id' => $id]);
@@ -175,19 +214,43 @@ public function enregistrerAjoutEtablissement() {
 
     // ==================== UTILISATEURS ====================
 
-    public function utilisateurs() {
-        $this->verifierSuperAdmin();
-        $utilisateurModel = new Utilisateur();
-        $utilisateurs = $utilisateurModel->tousAvecRole();
-        $message = $_SESSION['message_admin'] ?? '';
-        unset($_SESSION['message_admin']);
+public function utilisateurs() {
+    $this->verifierSuperAdmin();
+    $pdo = BaseDeDonnees::getInstance()->getPdo();
 
-        $this->afficherVuePrivee('admin/utilisateurs/liste', [
-            'titre' => 'Gestion des utilisateurs',
-            'utilisateurs' => $utilisateurs,
-            'message' => $message
-        ]);
+    // Récupérer tous les établissements pour le filtre
+    $etablissements = (new Etablissement())->tousAvecVille();
+
+    $id_etablissement = $_GET['id_etablissement'] ?? null;
+
+    $sql = "SELECT u.*, r.libelle as role_libelle, e.nom as etablissement_nom
+            FROM utilisateurs u
+            JOIN roles r ON u.id_role = r.id_role
+            LEFT JOIN etablissements e ON u.id_etablissement = e.id_etablissement
+            WHERE u.id_role IN (2, 3, 4)"; // uniquement admin établissement, médecin, réceptionniste
+
+    $params = [];
+    if ($id_etablissement) {
+        $sql .= " AND u.id_etablissement = :id_etab";
+        $params['id_etab'] = $id_etablissement;
     }
+    $sql .= " ORDER BY u.nom, u.prenom";
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $utilisateurs = $stmt->fetchAll();
+
+    $message = $_SESSION['message_admin'] ?? '';
+    unset($_SESSION['message_admin']);
+
+    $this->afficherVuePrivee('admin/utilisateurs/liste', [
+        'titre'          => 'Gestion des utilisateurs',
+        'utilisateurs'   => $utilisateurs,
+        'etablissements' => $etablissements,
+        'filtreEtab'     => $id_etablissement,
+        'message'        => $message
+    ]);
+}
 
     public function ajouterUtilisateur() {
         $this->verifierSuperAdmin();
@@ -205,44 +268,43 @@ public function enregistrerAjoutEtablissement() {
         ]);
     }
 
-public function enregistrerAjoutUtilisateur() {
-    $this->verifierSuperAdmin();
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $email = $_POST['email'] ?? '';
+    public function enregistrerAjoutUtilisateur() {
+        $this->verifierSuperAdmin();
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $email = $_POST['email'] ?? '';
+            $utilisateurModel = new Utilisateur();
+            $existant = $utilisateurModel->trouverParEmail($email);
+            if ($existant) {
+                $_SESSION['message_admin'] = 'Cet email est déjà utilisé.';
+                $this->rediriger('/admin/utilisateurs');
+                return;
+            }
 
-        // Vérifier si l'email existe déjà
-        $utilisateurModel = new Utilisateur();
-        $existant = $utilisateurModel->trouverParEmail($email);
-        if ($existant) {
-            $_SESSION['message_admin'] = 'Cet email est déjà utilisé.';
-            $this->rediriger('/admin/utilisateurs');
-            return;
+            $donnees = [
+                'nom' => $_POST['nom'] ?? '',
+                'prenom' => $_POST['prenom'] ?? '',
+                'email' => $email,
+                'mot_de_passe' => $_POST['mot_de_passe'] ?? '',
+                'telephone' => $_POST['telephone'] ?? '',
+                'id_role' => $_POST['id_role'] ?? 0,
+                'id_etablissement' => $_POST['id_etablissement'] ?: null,
+                'sexe' => $_POST['sexe'] ?? 'M',
+                'diplomes' => $_POST['diplomes'] ?? '',
+                'experience' => $_POST['experience'] ?? 0,
+                'id_specialite' => $_POST['id_specialite'] ?: null
+            ];
+
+            $typeRole = ($donnees['id_role'] == 3) ? 'medecin' : 'autre';
+            $id = $utilisateurModel->creerAvecRole($donnees, $typeRole);
+            if ($id) {
+                $_SESSION['message_admin'] = 'Utilisateur créé avec succès.';
+            } else {
+                $_SESSION['message_admin'] = 'Erreur lors de la création.';
+            }
         }
-
-        $donnees = [
-            'nom' => $_POST['nom'] ?? '',
-            'prenom' => $_POST['prenom'] ?? '',
-            'email' => $email,
-            'mot_de_passe' => $_POST['mot_de_passe'] ?? '',
-            'telephone' => $_POST['telephone'] ?? '',
-            'id_role' => $_POST['id_role'] ?? 0,
-            'id_etablissement' => $_POST['id_etablissement'] ?: null,
-            'sexe' => $_POST['sexe'] ?? 'M',
-            'diplomes' => $_POST['diplomes'] ?? '',
-            'experience' => $_POST['experience'] ?? 0,
-            'id_specialite' => $_POST['id_specialite'] ?: null
-        ];
-
-        $typeRole = ($donnees['id_role'] == 3) ? 'medecin' : 'autre';
-        $id = $utilisateurModel->creerAvecRole($donnees, $typeRole);
-        if ($id) {
-            $_SESSION['message_admin'] = 'Utilisateur créé avec succès.';
-        } else {
-            $_SESSION['message_admin'] = 'Erreur lors de la création.';
-        }
+        $this->rediriger('/admin/utilisateurs');
     }
-    $this->rediriger('/admin/utilisateurs');
-}
+
     public function modifierUtilisateur($id) {
         $this->verifierSuperAdmin();
         $utilisateurModel = new Utilisateur();
@@ -316,15 +378,13 @@ public function enregistrerAjoutUtilisateur() {
         $utilisateurModel = new Utilisateur();
         $success = false;
         $message = '';
-
-        // Vérifier si l'utilisateur a des rendez-vous ou autres dépendances
         $pdo = BaseDeDonnees::getInstance()->getPdo();
         $stmt = $pdo->prepare("SELECT COUNT(*) FROM rendez_vous WHERE id_patient = :id OR id_medecin = (SELECT id_medecin FROM medecins WHERE id_medecin = :id)");
         $stmt->execute(['id' => $id]);
         $count = $stmt->fetchColumn();
 
         if ($count > 0) {
-            $message = 'Impossible de supprimer cet utilisateur : il possède des rendez-vous. Veuillez d\'abord supprimer ou réassigner ses rendez-vous.';
+            $message = 'Impossible de supprimer cet utilisateur : il possède des rendez-vous.';
         } else {
             if ($utilisateurModel->supprimer($id)) {
                 $success = true;
@@ -341,6 +401,28 @@ public function enregistrerAjoutUtilisateur() {
         }
 
         $_SESSION['message_admin'] = $message;
+        $this->rediriger('/admin/utilisateurs');
+    }
+
+    public function bloquerUtilisateur($id) {
+        $this->verifierSuperAdmin();
+        $utilisateurModel = new Utilisateur();
+        $user = $utilisateurModel->trouverParId($id);
+        if ($user && $user['id_role'] != 1) {
+            $utilisateurModel->changerActif($id, 0);
+            $_SESSION['message_admin'] = 'Utilisateur bloqué.';
+        }
+        $this->rediriger('/admin/utilisateurs');
+    }
+
+    public function debloquerUtilisateur($id) {
+        $this->verifierSuperAdmin();
+        $utilisateurModel = new Utilisateur();
+        $user = $utilisateurModel->trouverParId($id);
+        if ($user) {
+            $utilisateurModel->changerActif($id, 1);
+            $_SESSION['message_admin'] = 'Utilisateur débloqué.';
+        }
         $this->rediriger('/admin/utilisateurs');
     }
 
@@ -376,8 +458,6 @@ public function enregistrerAjoutUtilisateur() {
         $this->verifierSuperAdmin();
         $success = false;
         $message = '';
-
-        // Vérifier si la spécialité est utilisée par un médecin
         $pdo = BaseDeDonnees::getInstance()->getPdo();
         $stmt = $pdo->prepare("SELECT COUNT(*) FROM medecins WHERE id_specialite = :id");
         $stmt->execute(['id' => $id]);
@@ -437,8 +517,6 @@ public function enregistrerAjoutUtilisateur() {
         $this->verifierSuperAdmin();
         $success = false;
         $message = '';
-
-        // Vérifier si le service est utilisé par un établissement
         $pdo = BaseDeDonnees::getInstance()->getPdo();
         $stmt = $pdo->prepare("SELECT COUNT(*) FROM etablissement_service WHERE id_service = :id");
         $stmt->execute(['id' => $id]);
@@ -498,7 +576,6 @@ public function enregistrerAjoutUtilisateur() {
         $this->verifierSuperAdmin();
         $success = false;
         $message = '';
-
         $pdo = BaseDeDonnees::getInstance()->getPdo();
         $stmt = $pdo->prepare("SELECT COUNT(*) FROM etablissements WHERE id_ville = :id");
         $stmt->execute(['id' => $id]);
@@ -527,34 +604,143 @@ public function enregistrerAjoutUtilisateur() {
     }
 
     // ==================== STATISTIQUES GLOBALES ====================
-    // (méthode existante, non modifiée)
+    public function statistiquesGlobales() {
+        $this->verifierSuperAdmin();
+        $pdo = BaseDeDonnees::getInstance()->getPdo();
+        $stats['medecins']       = $pdo->query("SELECT COUNT(*) FROM medecins")->fetchColumn();
+        $stats['patients']       = $pdo->query("SELECT COUNT(*) FROM patients")->fetchColumn();
+        $stats['etablissements'] = $pdo->query("SELECT COUNT(*) FROM etablissements")->fetchColumn();
+        $stats['rendezvous']     = $pdo->query("SELECT COUNT(*) FROM rendez_vous")->fetchColumn();
+        $stats['paiements']      = $pdo->query("SELECT COUNT(*) FROM paiements")->fetchColumn();
+
+        $this->afficherVuePrivee('admin/statistiques', [
+            'titre' => 'Statistiques globales',
+            'stats' => $stats
+        ]);
+    }
+
+    public function rapportPdf() {
+        $this->verifierSuperAdmin();
+        $pdo = BaseDeDonnees::getInstance()->getPdo();
+
+        $totalRdv = $pdo->query("SELECT COUNT(*) FROM rendez_vous")->fetchColumn();
+        $totalPaiements = $pdo->query("SELECT COUNT(*) FROM paiements")->fetchColumn();
+        $montantTotal = $pdo->query("SELECT SUM(montant) FROM paiements")->fetchColumn();
+        $medecinsActifs = $pdo->query("SELECT COUNT(DISTINCT id_medecin) FROM rendez_vous WHERE date_rdv >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)")->fetchColumn();
+        $patientsActifs = $pdo->query("SELECT COUNT(DISTINCT id_patient) FROM rendez_vous WHERE date_rdv >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)")->fetchColumn();
+
+        $html = '<h1>Rapport Global MediRDV</h1>';
+        $html .= '<p>Date : ' . date('d/m/Y') . '</p>';
+        $html .= '<table border="1" cellpadding="5"><tr><th>Indicateur</th><th>Valeur</th></tr>';
+        $html .= "<tr><td>Total rendez-vous</td><td>$totalRdv</td></tr>";
+        $html .= "<tr><td>Total paiements</td><td>$totalPaiements</td></tr>";
+        $html .= "<tr><td>Montant total encaissé</td><td>" . number_format($montantTotal, 0, ',', ' ') . " FCFA</td></tr>";
+        $html .= "<tr><td>Médecins actifs (30j)</td><td>$medecinsActifs</td></tr>";
+        $html .= "<tr><td>Patients actifs (30j)</td><td>$patientsActifs</td></tr>";
+        $html .= '</table>';
+
+        PdfGenerator::generer('Rapport_Global', $html);
+    }
 
     // ==================== HELPER ====================
-    /**
-     * Détermine si la requête courante est AJAX
-     */
     private function estAjax() {
         return !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest';
     }
-    public function bloquerUtilisateur($id) {
+
+    /**
+ * Réinitialise le mot de passe d'un utilisateur (Super Admin uniquement)
+ */
+public function reinitialiserMotDePasse($id) {
     $this->verifierSuperAdmin();
-    $utilisateurModel = new Utilisateur();
-    $user = $utilisateurModel->trouverParId($id);
-    if ($user && $user['id_role'] != 1) { // ne pas bloquer le super admin
-        $utilisateurModel->changerActif($id, 0);
-        $_SESSION['message_admin'] = 'Utilisateur bloqué.';
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        $this->rediriger('/admin/utilisateurs');
     }
+
+    $nouveauMdp = $_POST['nouveau_mdp'] ?? '';
+    if (strlen($nouveauMdp) < 6) {
+        $message = 'Le mot de passe doit contenir au moins 6 caractères.';
+        if ($this->estAjax()) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => $message]);
+            exit;
+        }
+        $_SESSION['message_admin'] = $message;
+        $this->rediriger('/admin/utilisateurs');
+        return;
+    }
+
+    $utilisateurModel = new Utilisateur();
+    $ok = $utilisateurModel->mettreAJour($id, ['mot_de_passe' => $nouveauMdp]);
+    $message = $ok ? 'Mot de passe réinitialisé avec succès.' : 'Erreur lors de la réinitialisation.';
+
+    if ($this->estAjax()) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => $ok, 'message' => $message]);
+        exit;
+    }
+    $_SESSION['message_admin'] = $message;
     $this->rediriger('/admin/utilisateurs');
 }
 
-public function debloquerUtilisateur($id) {
+public function voirEtablissement($id) {
     $this->verifierSuperAdmin();
-    $utilisateurModel = new Utilisateur();
-    $user = $utilisateurModel->trouverParId($id);
-    if ($user) {
-        $utilisateurModel->changerActif($id, 1);
-        $_SESSION['message_admin'] = 'Utilisateur débloqué.';
+    $etablissementModel = new Etablissement();
+    $etablissement = $etablissementModel->trouverParId($id);
+    if (!$etablissement) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => 'Établissement introuvable.']);
+        exit;
     }
-    $this->rediriger('/admin/utilisateurs');
+
+    // Services associés
+    $pdo = BaseDeDonnees::getInstance()->getPdo();
+    $stmt = $pdo->prepare("SELECT GROUP_CONCAT(s.nom SEPARATOR ', ') as services
+                           FROM etablissement_service es
+                           JOIN services s ON es.id_service = s.id_service
+                           WHERE es.id_etablissement = :id");
+    $stmt->execute(['id' => $id]);
+    $services = $stmt->fetch();
+    $etablissement['services'] = $services['services'] ?? '';
+
+    // Ville
+    $villeModel = new Ville();
+    $villes = $villeModel->tous();
+    foreach ($villes as $v) {
+        if ($v['id_ville'] == $etablissement['id_ville']) {
+            $etablissement['ville_nom'] = $v['nom'];
+            break;
+        }
+    }
+
+    header('Content-Type: application/json');
+    echo json_encode(['success' => true, 'etablissement' => $etablissement]);
+    exit;
+}
+
+/**
+ * Page de visualisation d'un établissement par le Super Admin
+ */
+public function profilEtablissement($id) {
+    $this->verifierSuperAdmin();
+
+    $etablissementModel = new Etablissement();
+    $etablissement = $etablissementModel->trouverParId($id);
+
+    if (!$etablissement) {
+        $_SESSION['message_admin'] = 'Établissement introuvable.';
+        $this->rediriger('/admin/etablissements');
+    }
+
+    // Récupérer l'administrateur lié à cet établissement (role_id = 2)
+    $pdo = BaseDeDonnees::getInstance()->getPdo();
+    $stmt = $pdo->prepare("SELECT * FROM utilisateurs WHERE id_etablissement = :id_etab AND id_role = 2 LIMIT 1");
+    $stmt->execute(['id_etab' => $id]);
+    $admin = $stmt->fetch();
+
+    $this->afficherVuePrivee('admin_etablissement/mon_etablissement', [
+        'titre'         => 'Profil de l\'établissement',
+        'etablissement' => $etablissement,
+        'admin'         => $admin
+    ]);
 }
 }

@@ -48,6 +48,12 @@
     </div>
 </div>
 
+<!-- Graphique mensuel -->
+<div class="card p-4 mt-4">
+    <h5 class="mb-3"><i class="bi bi-bar-chart-line me-2"></i>Activité mensuelle (<?= date('Y') ?>)</h5>
+    <canvas id="chartMedecin"></canvas>
+</div>
+
 <div class="row mt-4">
     <div class="col-md-6">
         <a href="<?= BASE_URL ?>/medecin/agenda" class="btn btn-primary w-100 py-3">📅 Voir l'agenda</a>
@@ -56,3 +62,23 @@
         <a href="<?= BASE_URL ?>/medecin/patients" class="btn btn-success w-100 py-3">👥 Voir les patients</a>
     </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+var ctx = document.getElementById('chartMedecin').getContext('2d');
+var data = [0,0,0,0,0,0,0,0,0,0,0,0];
+<?php foreach ($statsMensuelles as $s): ?>
+data[<?= $s['mois']-1 ?>] = <?= $s['total'] ?>;
+<?php endforeach; ?>
+new Chart(ctx, {
+    type: 'bar',
+    data: {
+        labels: ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Août','Sep','Oct','Nov','Déc'],
+        datasets: [{
+            label: 'Rendez-vous',
+            data: data,
+            backgroundColor: '#0d6efd'
+        }]
+    }
+});
+</script>

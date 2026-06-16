@@ -34,20 +34,96 @@ class AdminEtablissementControleur extends Controleur {
     }
 
     // ==================== MÉDECINS ====================
-    public function medecins() {
-        $this->verifierAdminEtablissement();
-        $id_etablissement = $this->getIdEtablissement();
-        $medecinModel = new Medecin();
-        $medecins = $medecinModel->parEtablissement($id_etablissement);
-        $message = $_SESSION['message_admin_etab'] ?? '';
-        unset($_SESSION['message_admin_etab']);
+    // ==================== MÉDECINS ====================
 
-        $this->afficherVuePrivee('admin_etablissement/medecins', [
-            'titre' => 'Médecins de l\'établissement',
-            'medecins' => $medecins,
-            'message' => $message
-        ]);
+public function medecins() {
+    $this->verifierAdminEtablissement();
+    $id_etablissement = $this->getIdEtablissement();
+
+    $filtre = $_GET['recherche'] ?? '';
+
+    $medecinModel = new Medecin();
+    $medecins = $medecinModel->rechercherParEtablissement($id_etablissement, $filtre);
+
+    $message = $_SESSION['message_admin_etab'] ?? '';
+    unset($_SESSION['message_admin_etab']);
+
+    $this->afficherVuePrivee('admin_etablissement/medecins', [
+        'titre'    => 'Médecins de l\'établissement',
+        'medecins' => $medecins,
+        'filtre'   => $filtre,
+        'message'  => $message
+    ]);
+}
+
+public function ajouterMedecin() {
+    $this->verifierAdminEtablissement();
+    $id_etablissement = $this->getIdEtablissement();
+
+    $specialiteModel = new Specialite();
+    $specialites = $specialiteModel->tous();
+
+    $this->afficherVuePrivee('admin_etablissement/ajouter_medecin', [
+        'titre'       => 'Ajouter un médecin',
+        'specialites' => $specialites
+    ]);
+}
+
+public function enregistrerAjoutMedecin() {
+    $this->verifierAdminEtablissement();
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $id_etablissement = $this->getIdEtablissement();
+
+        $donnees = [
+            'nom'             => $_POST['nom'] ?? '',
+            'prenom'          => $_POST['prenom'] ?? '',
+            'email'           => $_POST['email'] ?? '',
+            'mot_de_passe'    => $_POST['mot_de_passe'] ?? '',
+            'telephone'       => $_POST['telephone'] ?? '',
+            'sexe'            => $_POST['sexe'] ?? 'M',
+            'diplomes'        => $_POST['diplomes'] ?? '',
+            'experience'      => $_POST['experience'] ?? 0,
+            'id_specialite'   => $_POST['id_specialite'] ?? null,
+            'id_role'         => 3, // Médecin
+            'id_etablissement'=> $id_etablissement
+        ];
+
+        $utilisateurModel = new Utilisateur();
+        $existant = $utilisateurModel->trouverParEmail($donnees['email']);
+        if ($existant) {
+            $_SESSION['message_admin_etab'] = 'Cet email est déjà utilisé.';
+            $this->rediriger('/admin-etablissement/ajouter-medecin');
+            return;
+        }
+
+        $id = $utilisateurModel->creerAvecRole($donnees, 'medecin');
+        if ($id) {
+            $_SESSION['message_admin_etab'] = 'Médecin ajouté avec succès.';
+        } else {
+            $_SESSION['message_admin_etab'] = 'Erreur lors de la création.';
+        }
     }
+    $this->rediriger('/admin-etablissement/medecins');
+}
+
+
+public function supprimerMedecin($id_medecin) {
+    $this->verifierAdminEtablissement();
+    $id_etablissement = $this->getIdEtablissement();
+
+    $medecinModel = new Medecin();
+    $medecin = $medecinModel->trouverParId($id_medecin);
+    if (!$medecin || $medecin['id_etablissement'] != $id_etablissement) {
+        $_SESSION['message_admin_etab'] = 'Médecin introuvable ou non autorisé.';
+        $this->rediriger('/admin-etablissement/medecins');
+    }
+
+    // Supprimer l'utilisateur (CASCADE supprimera le médecin)
+    $utilisateurModel = new Utilisateur();
+    $utilisateurModel->supprimer($id_medecin);
+    $_SESSION['message_admin_etab'] = 'Médecin supprimé.';
+    $this->rediriger('/admin-etablissement/medecins');
+}
 
     public function modifierMedecin($id_medecin) {
         $this->verifierAdminEtablissement();
@@ -176,4 +252,67 @@ class AdminEtablissementControleur extends Controleur {
         $stats = $pdo->query("SELECT MONTH(date_rdv) as mois, COUNT(*) as total FROM rendez_vous WHERE id_etablissement = $id_etablissement AND YEAR(date_rdv) = $annee GROUP BY MONTH(date_rdv)")->fetchAll();
         $this->afficherVuePrivee('admin_etablissement/statistiques', ['titre' => 'Statistiques', 'stats' => $stats]);
     }
+
+    public function rapportPdf() {
+    $this->verifierAdminEtablissement();
+    $id_etablissement = $this->getIdEtablissement();
+    $pdo = BaseDeDonnees::getInstance()->getPdo();
+
+    $totalRdv = $pdo->prepare("SELECT COUNT(*) FROM rendez_vous WHERE id_etablissement = :id");
+    $totalRdv->execute(['id' => $id_etablissement]);
+    $totalRdv = $totalRdv->fetchColumn();
+
+    $totalPaiements = $pdo->prepare("SELECT COUNT(*) FROM paiements p JOIN rendez_vous r ON p.id_rdv = r.id_rdv WHERE r.id_etablissement = :id");
+    $totalPaiements->execute(['id' => $id_etablissement]);
+    $totalPaiements = $totalPaiements->fetchColumn();
+
+    $montantTotal = $pdo->prepare("SELECT SUM(p.montant) FROM paiements p JOIN rendez_vous r ON p.id_rdv = r.id_rdv WHERE r.id_etablissement = :id");
+    $montantTotal->execute(['id' => $id_etablissement]);
+    $montantTotal = $montantTotal->fetchColumn();
+
+    $medecinsActifs = $pdo->prepare("SELECT COUNT(DISTINCT id_medecin) FROM rendez_vous WHERE id_etablissement = :id AND date_rdv >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)");
+    $medecinsActifs->execute(['id' => $id_etablissement]);
+    $medecinsActifs = $medecinsActifs->fetchColumn();
+
+    $patientsActifs = $pdo->prepare("SELECT COUNT(DISTINCT id_patient) FROM rendez_vous WHERE id_etablissement = :id AND date_rdv >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)");
+    $patientsActifs->execute(['id' => $id_etablissement]);
+    $patientsActifs = $patientsActifs->fetchColumn();
+
+    $html = '<h1>Rapport d\'établissement</h1>';
+    $html .= '<p>Date : ' . date('d/m/Y') . '</p>';
+    $html .= '<table border="1" cellpadding="5"><tr><th>Indicateur</th><th>Valeur</th></tr>';
+    $html .= "<tr><td>Total rendez-vous</td><td>$totalRdv</td></tr>";
+    $html .= "<tr><td>Total paiements</td><td>$totalPaiements</td></tr>";
+    $html .= "<tr><td>Montant total encaissé</td><td>" . number_format($montantTotal, 0, ',', ' ') . " FCFA</td></tr>";
+    $html .= "<tr><td>Médecins actifs (30j)</td><td>$medecinsActifs</td></tr>";
+    $html .= "<tr><td>Patients actifs (30j)</td><td>$patientsActifs</td></tr>";
+    $html .= '</table>';
+
+    PdfGenerator::generer('Rapport_Etablissement', $html);
+}
+
+public function monEtablissement() {
+    $this->verifierAdminEtablissement();
+    $id_etablissement = $this->getIdEtablissement();
+
+    $etablissementModel = new Etablissement();
+    $etablissement = $etablissementModel->trouverParId($id_etablissement);
+
+    if (!$etablissement) {
+        $_SESSION['message_admin_etab'] = 'Établissement introuvable.';
+        $this->rediriger('/admin-etablissement/tableau-bord');
+    }
+
+    // Récupérer l'administrateur lié à cet établissement (role_id = 2)
+    $pdo = BaseDeDonnees::getInstance()->getPdo();
+    $stmt = $pdo->prepare("SELECT * FROM utilisateurs WHERE id_etablissement = :id_etab AND id_role = 2 LIMIT 1");
+    $stmt->execute(['id_etab' => $id_etablissement]);
+    $admin = $stmt->fetch();
+
+    $this->afficherVuePrivee('admin_etablissement/mon_etablissement', [
+        'titre'         => 'Mon établissement',
+        'etablissement' => $etablissement,
+        'admin'         => $admin // peut être null si pas d'admin (ne devrait pas arriver)
+    ]);
+}
 }

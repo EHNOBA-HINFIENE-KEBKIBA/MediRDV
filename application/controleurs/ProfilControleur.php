@@ -11,8 +11,21 @@ class ProfilControleur extends Controleur {
         $this->verifierConnecte();
         $utilisateurModel = new Utilisateur();
         $utilisateur = $utilisateurModel->trouverParId($_SESSION['utilisateur_id']);
+
+        // Récupérer les infos patient
+        $pdo = BaseDeDonnees::getInstance()->getPdo();
+        $stmt = $pdo->prepare("SELECT * FROM patients WHERE id_patient = :id");
+        $stmt->execute(['id' => $_SESSION['utilisateur_id']]);
+        $patient = $stmt->fetch();
+        if ($patient) {
+            $utilisateur = array_merge($utilisateur, $patient);
+        }
+
         $message = $_SESSION['message_profil'] ?? '';
         unset($_SESSION['message_profil']);
+
+        // Initialiser le token CSRF
+        Securite::csrfField();
 
         $this->afficherVuePrivee('profil/index', [
             'titre'      => 'Mon profil',
@@ -26,6 +39,18 @@ class ProfilControleur extends Controleur {
         $utilisateurModel = new Utilisateur();
         $utilisateur = $utilisateurModel->trouverParId($_SESSION['utilisateur_id']);
 
+        // Récupérer les infos patient
+        $pdo = BaseDeDonnees::getInstance()->getPdo();
+        $stmt = $pdo->prepare("SELECT * FROM patients WHERE id_patient = :id");
+        $stmt->execute(['id' => $_SESSION['utilisateur_id']]);
+        $patient = $stmt->fetch();
+        if ($patient) {
+            $utilisateur = array_merge($utilisateur, $patient);
+        }
+
+        // Initialiser le token CSRF
+        Securite::csrfField();
+
         $this->afficherVuePrivee('profil/modifier', [
             'titre'      => 'Modifier mon profil',
             'utilisateur'=> $utilisateur
@@ -35,18 +60,24 @@ class ProfilControleur extends Controleur {
     public function mettreAJour() {
         $this->verifierConnecte();
         Securite::verifierCsrf();
+
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $id = $_SESSION['utilisateur_id'];
             $donnees = [
-                'nom'      => $_POST['nom'] ?? '',
-                'prenom'   => $_POST['prenom'] ?? '',
-                'email'    => $_POST['email'] ?? '',
-                'telephone'=> $_POST['telephone'] ?? ''
+                'nom'            => $_POST['nom'] ?? '',
+                'prenom'         => $_POST['prenom'] ?? '',
+                'email'          => $_POST['email'] ?? '',
+                'telephone'      => $_POST['telephone'] ?? '',
+                'date_naissance' => $_POST['date_naissance'] ?? '',
+                'sexe'           => $_POST['sexe'] ?? '',
+                'pays'           => $_POST['pays'] ?? '',
+                'ville'          => $_POST['ville'] ?? ''
             ];
 
             // Gestion de la photo de profil
             if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
                 $dossier = 'public/assets/images/photos/';
+                if (!is_dir($dossier)) mkdir($dossier, 0755, true);
                 $extension = pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION);
                 $nomFichier = 'user_' . $id . '_' . time() . '.' . $extension;
                 $chemin = $dossier . $nomFichier;
@@ -56,11 +87,10 @@ class ProfilControleur extends Controleur {
             }
 
             $utilisateurModel = new Utilisateur();
-            $ok = $utilisateurModel->mettreAJour($id, $donnees);
-            $_SESSION['message_profil'] = $ok ? 'Profil mis à jour.' : 'Erreur.';
+            $ok = $utilisateurModel->mettreAJourProfil($id, $donnees);
+            $_SESSION['message_profil'] = $ok ? 'Profil mis à jour avec succès.' : 'Erreur.';
             if ($ok) {
                 $_SESSION['nom'] = $donnees['nom'] . ' ' . $donnees['prenom'];
-                // Journalisation
                 $historique = new HistoriqueAction();
                 $historique->enregistrer($id, 'Modification profil');
             }
@@ -72,6 +102,10 @@ class ProfilControleur extends Controleur {
         $this->verifierConnecte();
         $message = $_SESSION['message_profil'] ?? '';
         unset($_SESSION['message_profil']);
+
+        // Initialiser le token CSRF
+        Securite::csrfField();
+
         $this->afficherVuePrivee('profil/changer_mot_de_passe', [
             'titre'   => 'Changer mon mot de passe',
             'message' => $message
@@ -81,6 +115,7 @@ class ProfilControleur extends Controleur {
     public function enregistrerMotDePasse() {
         $this->verifierConnecte();
         Securite::verifierCsrf();
+
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $ancien = $_POST['ancien_mot_de_passe'] ?? '';
             $nouveau = $_POST['nouveau_mot_de_passe'] ?? '';

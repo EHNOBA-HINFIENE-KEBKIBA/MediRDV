@@ -292,6 +292,7 @@
             <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>/admin-etablissement/receptionnistes"><i class="bi bi-person-lines-fill"></i> Réceptionnistes</a></li>
             <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>/admin-etablissement/services"><i class="bi bi-clipboard2-plus"></i> Services</a></li>
             <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>/admin-etablissement/statistiques"><i class="bi bi-graph-up"></i> Statistiques</a></li>
+            </li><a class="nav-link" href="<?= BASE_URL ?>/admin-etablissement/mon-etablissement"><i class="bi bi-building"></i> Mon établissement</a><li>
         <?php elseif (($role_id ?? 0) == 1): // Super Admin ?>
             <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>/tableau-bord"><i class="bi bi-speedometer2"></i> Tableau de bord</a></li>
             <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>/admin/etablissements"><i class="bi bi-building"></i> Établissements</a></li>
@@ -306,6 +307,7 @@
         <?php endif; ?>
 
         <li class="nav-item mt-4"><hr class="border-light"></li>
+        <li><li class="nav-item">
         <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>/profil"><i class="bi bi-person-circle"></i> Mon profil</a></li>
         <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>/accueil"><i class="bi bi-house"></i> Accueil public</a></li>
         <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>/deconnexion"><i class="bi bi-box-arrow-right"></i> Déconnexion</a></li>

@@ -1,107 +1,255 @@
 <?php if (!defined('BASE_URL')) define('BASE_URL', '/MediRDV'); ?>
-<!-- Section Héro -->
-<section class="hero text-center">
+
+<!-- Styles spécifiques à cette page (déjà inclus ou à ajouter dans style.css) -->
+<style>
+.hero {
+    background: linear-gradient(135deg, #0d6efd 0%, #6610f2 100%);
+}
+</style>
+
+<!-- HERO AMÉLIORÉ -->
+<section class="hero py-5 text-white">
     <div class="container">
-        <h1>Bienvenue sur MediRDV</h1>
-        <p>Votre santé, votre rendez-vous, partout et à tout moment.</p>
-        <a href="<?= BASE_URL ?>/prendre-rdv" class="btn btn-primary btn-lg px-5 py-3 fw-bold">Prendre rendez-vous</a>
+        <div class="row align-items-center">
+            <div class="col-lg-6">
+                <h1 class="display-4 fw-bold mb-4">Bienvenue sur MediRDV</h1>
+                <p class="lead mb-3">La plateforme qui simplifie votre parcours de santé.</p>
+                <p class="mb-4">
+                    MediRDV vous permet de rechercher des médecins, cliniques et hôpitaux,
+                    de prendre rendez-vous en ligne 24h/24, de consulter à distance par vidéo
+                    et de gérer vos documents médicaux en toute sécurité.
+                </p>
+                <div class="d-flex gap-3 flex-wrap">
+                    <a href="<?= BASE_URL ?>/inscription" class="btn btn-light btn-lg">
+                        <i class="bi bi-person-plus"></i> S'inscrire gratuitement
+                    </a>
+                    <a href="<?= BASE_URL ?>/a-propos" class="btn btn-outline-light btn-lg">
+                        <i class="bi bi-info-circle"></i> En savoir plus
+                    </a>
+                </div>
+            </div>
+            <div class="col-lg-6 text-center mt-4 mt-lg-0">
+                <img src="<?= BASE_URL ?>/public/assets/images/hero-medical.png"
+                     class="img-fluid" alt="MediRDV">
+            </div>
+        </div>
     </div>
 </section>
 
-<!-- Pourquoi choisir MediRDV ? -->
+<!-- STATISTIQUES DYNAMIQUES -->
+<section class="py-5 bg-light">
+    <div class="container">
+        <div class="row text-center">
+            <div class="col-md-3 mb-4">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <h2 class="text-primary fw-bold"><?= $stats['medecins'] ?? 0 ?>+</h2>
+                        <p>Médecins</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <h2 class="text-success fw-bold"><?= $stats['etablissements'] ?? 0 ?>+</h2>
+                        <p>Établissements</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <h2 class="text-warning fw-bold"><?= $stats['patients'] ?? 0 ?>+</h2>
+                        <p>Patients</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <h2 class="text-danger fw-bold"><?= $stats['rendezvous'] ?? 0 ?>+</h2>
+                        <p>Rendez-vous</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SERVICES -->
 <section class="py-5">
     <div class="container">
-        <h2 class="text-center mb-5">Pourquoi choisir MediRDV ?</h2>
+        <div class="text-center mb-5">
+            <h2>Nos Services</h2>
+            <p>Une plateforme complète pour votre santé.</p>
+        </div>
         <div class="row g-4">
-            <div class="col-md-3 text-center">
-                <div class="p-3">
-                    <div class="display-6 text-primary">⚡</div>
-                    <h5>Réservation rapide</h5>
-                    <p class="text-muted">Prenez rendez-vous en quelques clics, 24h/24 et 7j/7.</p>
+            <?php
+            $services = [
+                ['calendar-check', 'Prise de rendez-vous'],
+                ['camera-video', 'Téléconsultation'],
+                ['credit-card', 'Paiement en ligne'],
+                ['qr-code', 'QR Code'],
+                ['bell', 'Notifications SMS'],
+                ['folder2-open', 'Documents médicaux']
+            ];
+            foreach($services as $service):
+            ?>
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm h-100 text-center">
+                    <div class="card-body">
+                        <i class="bi bi-<?= $service[0] ?> fs-1 text-primary"></i>
+                        <h5 class="mt-3"><?= $service[1] ?></h5>
+                    </div>
                 </div>
             </div>
-            <div class="col-md-3 text-center">
-                <div class="p-3">
-                    <div class="display-6 text-primary">📹</div>
-                    <h5>Téléconsultation</h5>
-                    <p class="text-muted">Consultez votre médecin à distance par vidéo.</p>
-                </div>
-            </div>
-            <div class="col-md-3 text-center">
-                <div class="p-3">
-                    <div class="display-6 text-primary">💳</div>
-                    <h5>Paiement sécurisé</h5>
-                    <p class="text-muted">Payez en ligne en toute sécurité (carte, mobile money).</p>
-                </div>
-            </div>
-            <div class="col-md-3 text-center">
-                <div class="p-3">
-                    <div class="display-6 text-primary">🔔</div>
-                    <h5>Notifications</h5>
-                    <p class="text-muted">Recevez des rappels par SMS, email ou WhatsApp.</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- Statistiques -->
-<section class="stats-section py-5">
-    <div class="container text-center">
-        <h2 class="mb-5">Nos chiffres</h2>
-        <div class="row">
-            <div class="col-md-3"><span class="stat-box"><?= $stats['medecins'] ?>+</span><br>Médecins</div>
-            <div class="col-md-3"><span class="stat-box"><?= $stats['etablissements'] ?>+</span><br>Établissements</div>
-            <div class="col-md-3"><span class="stat-box"><?= $stats['patients'] ?>+</span><br>Patients</div>
-            <div class="col-md-3"><span class="stat-box"><?= $stats['rendezvous'] ?>+</span><br>Rendez-vous</div>
-        </div>
-    </div>
-</section>
-
-<!-- Témoignages -->
-<section class="py-5 bg-white">
-<section class="py-5 bg-white">
-    <div class="container">
-        <h2 class="text-center mb-5">Ce que nos patients disent</h2>
-        <div class="row">
-            <?php if (!empty($temoignages)): ?>
-                <?php foreach ($temoignages as $t): ?>
-                <div class="col-md-4">
-                    <blockquote class="blockquote text-center">
-                        <p>"<?= htmlspecialchars($t['contenu']) ?>"</p>
-                        <footer class="blockquote-footer"><?= htmlspecialchars($t['nom']) ?>, <?= htmlspecialchars($t['profession'] ?? '') ?></footer>
-                    </blockquote>
-                </div>
-                <?php endforeach; ?>
-            <?php else: ?>
-                <p class="text-center">Aucun témoignage pour le moment.</p>
-            <?php endif; ?>
-        </div>
-    </div>
-</section>
-
-<!-- Appel à l'action -->
-<section class="bg-primary text-white text-center py-5">
-    <div class="container">
-        <h2>Prêt à prendre votre santé en main ?</h2>
-        <p class="lead">Rejoignez MediRDV dès aujourd'hui.</p>
-        <a href="<?= BASE_URL ?>/inscription" class="btn btn-light btn-lg">Créer un compte</a>
-    </div>
-</section>
-// Partenaires
-<section class="py-5">
-    <div class="container text-center">
-        <h2 class="mb-4">Nos Partenaires</h2>
-        <div class="row justify-content-center align-items-center">
-            <?php foreach ($partenaires as $p): ?>
-                <div class="col-6 col-md-3 mb-3">
-                    <?php if (!empty($p['logo'])): ?>
-                        <img src="<?= BASE_URL . '/' . $p['logo'] ?>" alt="<?= htmlspecialchars($p['nom']) ?>" class="img-fluid" style="max-height: 80px;">
-                    <?php else: ?>
-                        <span class="fw-bold"><?= htmlspecialchars($p['nom']) ?></span>
-                    <?php endif; ?>
-                </div>
             <?php endforeach; ?>
         </div>
+    </div>
+</section>
+
+<!-- SPÉCIALITÉS DYNAMIQUES -->
+<?php if (!empty($specialites)): ?>
+<section class="py-5 bg-light">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2>Spécialités</h2>
+        </div>
+        <div class="row g-4">
+            <?php foreach($specialites as $spe): ?>
+            <div class="col-md-2 col-6">
+                <div class="card border-0 shadow-sm text-center">
+                    <div class="card-body">
+                        <i class="bi bi-heart-pulse fs-1 text-primary"></i>
+                        <p class="mt-2 mb-0"><?= htmlspecialchars($spe['nom']) ?></p>
+                    </div>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+</section>
+<?php endif; ?>
+
+<!-- TÉLÉCONSULTATION -->
+<section class="py-5">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-6">
+                <img src="<?= BASE_URL ?>/public/assets/images/teleconsultation.jpg" class="img-fluid rounded shadow" alt="Téléconsultation">
+            </div>
+            <div class="col-lg-6">
+                <h2 class="fw-bold">Consultez votre médecin depuis chez vous</h2>
+                <p class="lead">Grâce à notre système de téléconsultation sécurisé, échangez avec votre médecin en toute simplicité.</p>
+                <a href="#" class="btn btn-primary">En savoir plus</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- COMMENT ÇA MARCHE -->
+<section class="py-5 bg-light">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2>Comment ça marche ?</h2>
+        </div>
+        <div class="row text-center">
+            <div class="col-md-3"><i class="bi bi-person-plus fs-1 text-primary"></i><h5>Créer un compte</h5></div>
+            <div class="col-md-3"><i class="bi bi-search fs-1 text-primary"></i><h5>Choisir un médecin</h5></div>
+            <div class="col-md-3"><i class="bi bi-calendar-check fs-1 text-primary"></i><h5>Réserver</h5></div>
+            <div class="col-md-3"><i class="bi bi-check-circle fs-1 text-primary"></i><h5>Consulter</h5></div>
+        </div>
+    </div>
+</section>
+
+<!-- TÉMOIGNAGES DYNAMIQUES -->
+<?php if (!empty($temoignages)): ?>
+<section class="py-5">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2>Témoignages</h2>
+        </div>
+        <div class="row">
+            <?php foreach($temoignages as $t): ?>
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="mb-3 text-warning">
+                            <?= str_repeat('★', $t['note']) ?><?= str_repeat('☆', 5 - $t['note']) ?>
+                        </div>
+                        <p><?= htmlspecialchars($t['contenu']) ?></p>
+                        <strong><?= htmlspecialchars($t['nom']) ?></strong>
+                        <?php if (!empty($t['profession'])): ?>
+                            <br><small class="text-muted"><?= htmlspecialchars($t['profession']) ?></small>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+</section>
+<?php endif; ?>
+
+<!-- BLOG DYNAMIQUE -->
+<?php if (!empty($articles)): ?>
+<section class="py-5 bg-light">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2>Derniers Articles</h2>
+        </div>
+        <div class="row">
+            <?php foreach($articles as $article): ?>
+            <div class="col-md-4">
+                <div class="card border-0 shadow h-100">
+                    <?php if (!empty($article['image'])): ?>
+                        <img src="<?= BASE_URL . '/' . $article['image'] ?>" class="card-img-top" alt="<?= htmlspecialchars($article['titre']) ?>">
+                    <?php else: ?>
+                        <img src="<?= BASE_URL ?>/public/assets/images/blog.jpg" class="card-img-top" alt="Blog">
+                    <?php endif; ?>
+                    <div class="card-body d-flex flex-column">
+                        <h5 class="card-title"><?= htmlspecialchars($article['titre']) ?></h5>
+                        <p class="card-text flex-grow-1"><?= substr(strip_tags($article['contenu']), 0, 100) ?>...</p>
+                        <a href="<?= BASE_URL ?>/blog/article/<?= $article['id_article'] ?>" class="btn btn-outline-primary mt-auto">Lire</a>
+                    </div>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+</section>
+<?php endif; ?>
+
+<!-- FAQ DYNAMIQUE -->
+<?php if (!empty($faqs)): ?>
+<section class="py-5">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2>Questions Fréquentes</h2>
+        </div>
+        <div class="accordion" id="faq">
+            <?php foreach($faqs as $index => $faq): ?>
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button <?= $index==0?'':'collapsed' ?>" data-bs-toggle="collapse" data-bs-target="#faq<?= $index ?>">
+                        <?= htmlspecialchars($faq['question']) ?>
+                    </button>
+                </h2>
+                <div id="faq<?= $index ?>" class="accordion-collapse collapse <?= $index==0?'show':'' ?>" data-bs-parent="#faq">
+                    <div class="accordion-body"><?= nl2br(htmlspecialchars($faq['reponse'])) ?></div>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+</section>
+<?php endif; ?>
+
+<!-- CTA FINAL -->
+<section class="py-5 bg-primary text-white text-center">
+    <div class="container">
+        <h2 class="fw-bold">Commencez dès aujourd'hui avec MediRDV</h2>
+        <p class="lead">Prenez rendez-vous en ligne avec les meilleurs professionnels de santé.</p>
+        <a href="<?= BASE_URL ?>/inscription" class="btn btn-light btn-lg">Créer un compte</a>
     </div>
 </section>

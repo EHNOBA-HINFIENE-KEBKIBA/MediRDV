@@ -3,18 +3,16 @@ class Utilisateur extends Modele {
     protected $table = 'utilisateurs';
 
     // ========================
-    // MÉTHODES D'AUTHENTIFICATION
+    // AUTHENTIFICATION
     // ========================
 
     /**
      * Inscrit un nouvel utilisateur (patient par défaut)
      */
-    public function inscrire($nom, $prenom, $email, $mot_de_passe, $telephone = null) {
+    public function inscrire($nom, $prenom, $email, $mot_de_passe, $telephone = null, $date_naissance = null, $sexe = null, $pays = null, $ville = null) {
         $stmt = $this->pdo->prepare("SELECT id_utilisateur FROM {$this->table} WHERE email = :email");
         $stmt->execute(['email' => $email]);
-        if ($stmt->fetch()) {
-            return false;
-        }
+        if ($stmt->fetch()) return false;
 
         $id_role = 5; // Patient
         $hash = password_hash($mot_de_passe, PASSWORD_BCRYPT);
@@ -24,23 +22,26 @@ class Utilisateur extends Modele {
             VALUES (:nom, :prenom, :email, :mdp, :tel, :role)
         ");
         $ok = $stmt->execute([
-            'nom'  => $nom,
-            'prenom' => $prenom,
-            'email' => $email,
-            'mdp'  => $hash,
-            'tel'  => $telephone,
-            'role' => $id_role
+            'nom'  => $nom, 'prenom' => $prenom, 'email' => $email,
+            'mdp'  => $hash, 'tel' => $telephone, 'role' => $id_role
         ]);
         if ($ok) {
             $id = $this->pdo->lastInsertId();
-            $this->pdo->prepare("INSERT INTO patients (id_patient) VALUES (:id)")->execute(['id' => $id]);
+            $stmtPat = $this->pdo->prepare("
+                INSERT INTO patients (id_patient, date_naissance, sexe, pays, ville) 
+                VALUES (:id, :date_naissance, :sexe, :pays, :ville)
+            ");
+            $stmtPat->execute([
+                'id' => $id, 'date_naissance' => $date_naissance,
+                'sexe' => $sexe, 'pays' => $pays, 'ville' => $ville
+            ]);
             return $id;
         }
         return false;
     }
 
     /**
-     * Vérifie l'email/mot de passe et retourne l'utilisateur si OK, false sinon.
+     * Vérifie email/mot de passe et retourne l'utilisateur si OK, false sinon.
      * Empêche la connexion si le compte est bloqué (actif = 0).
      */
     public function connecter($email, $mot_de_passe) {
@@ -49,17 +50,14 @@ class Utilisateur extends Modele {
         $utilisateur = $stmt->fetch();
 
         if ($utilisateur && password_verify($mot_de_passe, $utilisateur['mot_de_passe'])) {
-            // Vérifier si le compte est actif
-            if (isset($utilisateur['actif']) && $utilisateur['actif'] == 0) {
-                return false; // Compte bloqué
-            }
+            if (isset($utilisateur['actif']) && $utilisateur['actif'] == 0) return false;
             return $utilisateur;
         }
         return false;
     }
 
     // ========================
-    // MÉTHODES D'ADMINISTRATION
+    // ADMINISTRATION & CRUD
     // ========================
 
     public function tousAvecRole() {
@@ -79,11 +77,12 @@ class Utilisateur extends Modele {
         $stmt->execute(['id' => $id]);
         return $stmt->fetch();
     }
+
     public function trouverParEmail($email) {
-    $stmt = $this->pdo->prepare("SELECT id_utilisateur FROM {$this->table} WHERE email = :email");
-    $stmt->execute(['email' => $email]);
-    return $stmt->fetch();
-}
+        $stmt = $this->pdo->prepare("SELECT id_utilisateur FROM {$this->table} WHERE email = :email");
+        $stmt->execute(['email' => $email]);
+        return $stmt->fetch();
+    }
 
     public function creerAvecRole($donnees, $typeRole) {
         $donnees['mot_de_passe'] = password_hash($donnees['mot_de_passe'], PASSWORD_BCRYPT);
@@ -117,8 +116,7 @@ class Utilisateur extends Modele {
     }
 
     /**
-     * Met à jour un utilisateur avec les champs fournis.
-     * Si 'mot_de_passe' est présent et non vide, il est haché.
+     * Met à jour les champs de la table utilisateurs (version flexible).
      */
     public function mettreAJour($id, $donnees) {
         $sets = [];
@@ -139,15 +137,52 @@ class Utilisateur extends Modele {
             }
         }
 
-        if (empty($sets)) {
-            return false;
-        }
+        if (empty($sets)) return false;
 
         $sql = "UPDATE {$this->table} SET " . implode(', ', $sets) . " WHERE id_utilisateur = :id";
         $params['id'] = $id;
-
         $stmt = $this->pdo->prepare($sql);
         return $stmt->execute($params);
+    }
+
+    /**
+     * Met à jour le profil complet (utilisateur + patient)
+     */
+    public function mettreAJourProfil($id, $donnees) {
+        // Colonnes utilisateurs
+        $colsUser = ['nom', 'prenom', 'email', 'telephone', 'photo'];
+        $setsUser = [];
+        $paramsUser = [];
+        foreach ($donnees as $champ => $valeur) {
+            if (in_array($champ, $colsUser)) {
+                $setsUser[] = "$champ = :$champ";
+                $paramsUser[$champ] = $valeur;
+            }
+        }
+        if (!empty($setsUser)) {
+            $sql = "UPDATE {$this->table} SET " . implode(', ', $setsUser) . " WHERE id_utilisateur = :id";
+            $paramsUser['id'] = $id;
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute($paramsUser);
+        }
+
+        // Colonnes patients
+        $colsPat = ['date_naissance', 'sexe', 'pays', 'ville'];
+        $setsPat = [];
+        $paramsPat = [];
+        foreach ($donnees as $champ => $valeur) {
+            if (in_array($champ, $colsPat)) {
+                $setsPat[] = "$champ = :$champ";
+                $paramsPat[$champ] = $valeur;
+            }
+        }
+        if (!empty($setsPat)) {
+            $sql = "UPDATE patients SET " . implode(', ', $setsPat) . " WHERE id_patient = :id";
+            $paramsPat['id'] = $id;
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute($paramsPat);
+        }
+        return true;
     }
 
     public function supprimer($id) {
@@ -155,21 +190,25 @@ class Utilisateur extends Modele {
         return $stmt->execute(['id' => $id]);
     }
 
-    /**
-     * Active ou désactive un utilisateur
-     */
     public function changerActif($id, $actif) {
         $stmt = $this->pdo->prepare("UPDATE {$this->table} SET actif = :actif WHERE id_utilisateur = :id");
         return $stmt->execute(['actif' => $actif ? 1 : 0, 'id' => $id]);
     }
 
-    /**
-     * Vérifie si un utilisateur est actif
-     */
     public function estActif($email) {
         $stmt = $this->pdo->prepare("SELECT actif FROM {$this->table} WHERE email = :email");
         $stmt->execute(['email' => $email]);
         $result = $stmt->fetch();
         return $result && $result['actif'] == 1;
+    }
+
+    /**
+     * Retourne l'URL de la photo ou un avatar par défaut.
+     */
+    public function photoUrl($utilisateur) {
+        if (!empty($utilisateur['photo']) && file_exists($utilisateur['photo'])) {
+            return BASE_URL . '/' . $utilisateur['photo'];
+        }
+        return BASE_URL . '/public/assets/images/avatar.png';
     }
 }

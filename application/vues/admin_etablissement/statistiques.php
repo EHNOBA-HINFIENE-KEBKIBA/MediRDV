@@ -1,8 +1,16 @@
 <?php if (!defined('BASE_URL')) define('BASE_URL', '/MediRDV'); ?>
-<h2><?= $titre ?></h2>
-<div class="card p-4">
+<h2><?= $titre ?? 'Statistiques' ?></h2>
+
+<div class="card p-4 mb-4">
     <canvas id="chartRdv"></canvas>
 </div>
+
+<div class="text-end">
+    <a href="<?= BASE_URL ?>/admin-etablissement/rapport-pdf" class="btn btn-outline-danger">
+        📄 Télécharger le rapport PDF
+    </a>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 var ctx = document.getElementById('chartRdv').getContext('2d');

@@ -31,16 +31,26 @@
                             <?= $rdv['statut'] ?>
                         </span>
                     </td>
-<td>
-    <?php
-    // Texte à encoder dans le QR code (identique à celui généré côté serveur)
-    $qrTexte = "RDV:" . $rdv['reference'] . " - Dr " . $rdv['medecin_nom'] . " " . $rdv['medecin_prenom'] . " le " . date('d/m/Y', strtotime($rdv['date_rdv'])) . " à " . substr($rdv['heure_rdv'], 0, 5);
-    ?>
-    <div class="qr-code-container" data-qr="<?= htmlspecialchars($qrTexte) ?>"></div>
-</td>
                     <td>
-                        <?php if (!empty($rdv['teleconsultation']) && $rdv['statut'] == 'Confirmé'): ?>
-                            <a href="<?= BASE_URL ?>/teleconsultation/rejoindre/<?= $rdv['id_rdv'] ?>" class="btn btn-sm btn-success">Rejoindre</a>
+                        <?php
+                        // Texte à encoder dans le QR code
+                        $qrTexte = "RDV:" . $rdv['reference'] . " - Dr " . $rdv['medecin_nom'] . " " . $rdv['medecin_prenom'] . " le " . date('d/m/Y', strtotime($rdv['date_rdv'])) . " à " . substr($rdv['heure_rdv'], 0, 5);
+                        ?>
+                        <div class="qr-code-container" data-qr="<?= htmlspecialchars($qrTexte) ?>"></div>
+                    </td>
+                    <td>
+                        <?php
+                        $tele = $rdv['teleconsultation'] ?? null;
+                        $dateHeureRdv = strtotime($rdv['date_rdv'] . ' ' . $rdv['heure_rdv']);
+                        $maintenant = time();
+                        if ($tele && !empty($tele['lien']) && $tele['statut'] == 'active' && $dateHeureRdv <= $maintenant): ?>
+                            <a href="<?= BASE_URL ?>/teleconsultation/rejoindre/<?= $rdv['id_rdv'] ?>" class="btn btn-sm btn-success">
+                                <i class="bi bi-camera-video"></i> Rejoindre
+                            </a>
+                        <?php elseif ($tele && !empty($tele['lien']) && $tele['statut'] == 'active'): ?>
+                            <span class="text-muted"><i class="bi bi-clock"></i> À <?= date('H:i', $dateHeureRdv) ?></span>
+                        <?php elseif ($tele && !empty($tele['lien'])): ?>
+                            <span class="text-muted"><i class="bi bi-camera-video-off"></i> <?= ucfirst($tele['statut'] ?? '') ?></span>
                         <?php else: ?>
                             <span class="text-muted">-</span>
                         <?php endif; ?>
@@ -56,7 +66,7 @@
                         <?php if ($rdv['statut'] == 'Terminé'): ?>
                             <a href="<?= BASE_URL ?>/consultation/voir/<?= $rdv['id_rdv'] ?>" class="btn btn-sm btn-outline-info">Voir</a>
                         <?php else: ?>
-                            <span class="text-muted">En attente</span>
+                            <span class="text-muted">-</span>
                         <?php endif; ?>
                     </td>
                 </tr>
@@ -64,15 +74,18 @@
             </tbody>
         </table>
     </div>
-    <script>
+<?php endif; ?>
+
+<script>
+// Génération des QR codes
 document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.qr-code-container').forEach(function(container) {
         var texte = container.getAttribute('data-qr');
         if (texte) {
             new QRCode(container, {
                 text: texte,
-                width: 80,
-                height: 80,
+                width: 70,
+                height: 70,
                 colorDark : "#000000",
                 colorLight : "#ffffff",
                 correctLevel : QRCode.CorrectLevel.L
@@ -83,4 +96,3 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
-<?php endif; ?>&
